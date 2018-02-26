@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+
+<style type="text/css">
+.outer-wrapper {
+	width: 100%;
+}
+
+h1 {
+	font-family: helvetica, sans-serif;
+	margin-left: 50px;
+}
+
+/* SVG axes
+----------------------------------*/
+.axis path, .axis line {
+	fill: none;
+	stroke: #666;
+	shape-rendering: crispEdges;
+}
+
+.axis text {
+	font-family: sans-serif;
+	fill: #666;
+	font-size: 13px;
+	shape-rendering: crispEdges;
+}
+</style>
+
+
+</head>
+
+<body>
+<div class="outer-wrapper">
+	
+	<div class="chart">
+		<div class="tool-tip">
+		</div>
+	</div>
+ 
+</div>
+	<script
+		src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
+	<script src="http://d3js.org/d3.v3.min.js"></script>
+
+	<script type="text/javascript">
+		var margin = {
+		    top: 20,
+		    right: 20,
+		    bottom: 30,
+		    left: 50,
+		    mid: 20
+		};
+	var xAxisKeys = [];
+		var width = parseInt(d3.select('body').style('width'), 10) - margin.left - margin.right;//$('body').width()
+		var miniHeight = 45;
+		var height = 400 - margin.top - margin.mid - miniHeight - margin.bottom;
+		var xAxisLabel = 'Order';
+		var yAxisLabel = 'Score';
+		var topData = [];
+	     for (var i = 0; i < 50; i++) {
+		     var my_object = {};
+		     my_object.key = i;
+		     my_object.score = i*1;
+		     xAxisKeys.push(i)
+		     topData.push(my_object);
+	     }
+
+		var selected;
+
+		var svg = d3.select("body").append("svg")
+		    .attr("width", width + margin.left + margin.right)
+		    .attr("height", height + margin.top + margin.mid + miniHeight + margin.bottom);
+
+		var barsGroup = svg.append('g')
+		    .attr("class", "barsGroup")
+		    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+		
+		var miniGroup = svg.append('g')
+		    .attr("class", "miniGroup")
+		    .attr("transform", "translate(" + margin.left + "," + (margin.top + height + margin.mid + margin.top) + ")");
+
+		var brushGroup = svg.append('g')
+		    .attr("class", "brushGroup")
+		    .attr("transform", "translate(" + margin.left + "," + (margin.top + height + margin.mid + margin.top) + ")");
+
+		/*	Scales */
+		var axisRange = d3.range(topData.length);
+
+		axisRange.shift();
+
+		axisRange.push((axisRange[axisRange.length - 1] + 1));
+
+		var yScale = d3.scale.linear()
+		    .range([height, 0])
+		    .domain([0, d3.max(topData, function(d) {
+		        return d.score;
+		    })]);
+		
+		var yBrushScale = d3.scale.linear()
+	    .range([miniHeight, 0])
+	    .domain([0, d3.max(topData, function(d) {
+	        return d.score;
+	    })]);
+		
+		var xScale = d3.scale.ordinal()
+		    .rangeBands([width, 0], 0.2, 0)
+		    .domain(d3.range(topData.length));
+
+		var xScaleBrush = d3.scale.ordinal()
+		    .rangeBands([width, 0], 0.2, 0)
+		    .domain(d3.range(topData.length));
+
+		var xScaleAxis = d3.scale.ordinal()
+		    .rangeBands([width, 0], 0.2, 0)
+		    .domain(axisRange);
+
+		/*	Define y axis */
+		var yAxis = d3.svg.axis()
+		    .scale(yScale)
+		    .tickSize(-width, -width)
+		    .ticks(5)
+		    .orient("left");
+
+		/* Define y axis */
+		var xAxis = d3.svg.axis()
+		    .scale(xScaleAxis)
+		    .tickSize(1, 0)
+		    .tickValues(xAxisKeys)
+		    .orient("bottom");
+
+
+		/*	Prepare the y axis but do not call .call(xAxis) yet */
+		svg.append("g")
+		    .attr("class", "y axis")
+		    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+		    .append("g")
+		    .attr("class", "axisLabel")
+		    .append("text")
+		    .attr("transform", "translate(" + -(margin.left * 0.8) + "," + (height / 2) + "), rotate(-90)")
+		    .style("text-anchor", "middle")
+		    .text(yAxisLabel);
+
+		var ddf = svg.append("g")
+		    .attr("class", "x axis")
+		    .attr("transform", "translate(" + margin.left + "," + (margin.top + height) + ")")
+		    .call(xAxis).selectAll("text")
+            .attr("transform", function(d) {
+                return "rotate(-65)" 
+             }).attr("x", "-10")
+            .attr("y", "5")
+		    .append("g")
+		    .attr("class", "axisLabel")
+		    .append("text")
+		    .attr("transform", "translate(" + (width / 2) + "," + margin.bottom + ")")
+		    .style("text-anchor", "middle")
+		
+		var brush = d3.svg.brush()
+		    .x(xScaleBrush)
+		    .extent([0, 100])
+		    .on("brush", display);
+
+		brushGroup.append("g")
+		    .attr("class", "brush")
+		    .call(brush)
+		    .selectAll("rect")
+		    .attr("opacity", 0.5)
+		    .attr("height", miniHeight);
+
+		function display() {
+
+		    selected = xScaleBrush.domain()
+		        .filter(function(d) {
+		            return (brush.extent()[0] <= xScaleBrush(d)) && (xScaleBrush(d) <= brush.extent()[1]);
+		        });
+
+		    var start;
+		    var end;
+
+		    /* Keep a minimum amount of bars on there to avoid any jank */
+		    if (selected.length > 0) {
+		        start = selected[0];
+		        end = selected[selected.length - 1] + 1;
+		    } else {
+		        start = 0;
+		        end = topData.length;
+		    }
+
+		    var updatedData = topData.slice(start, end);
+
+		    updateBars(updatedData);
+
+		}
+
+		function update(grp, data, main) {
+		    grp.selectAll("rect").data(data, function(d) {
+		            return d.key;
+		        })
+		        .attr("x", function(d, i) {
+		            return xScale(i);
+		        })
+		        .attr("width", function(d) {
+		            return xScale.rangeBand();
+		        })
+		        .attr("y", function(d) {
+		            return main ? yScale(d.score) : yBrushScale(d.score);
+		        })
+		        .attr("height", function(d) {
+		            return main ? height - yScale(d.score) : miniHeight-yBrushScale(d.score);
+		        });
+		}
+		function enter(grp, data, main) {
+		    grp.selectAll("rect").data(data, function(d) {
+		            return d.key;
+		        })
+		        .enter()
+		        .append("rect")
+		        .attr("x", function(d, i) {
+		            return xScale(i);
+		        })
+		        .attr("width", function(d) {
+		            return xScale.rangeBand();
+		        })
+		        .attr("y", function(d) {
+		            return main ? yScale(d.score) : yBrushScale(d.score);
+		        })
+		        .attr("height", function(d) {
+		            return main ? height - yScale(d.score) :  miniHeight-yBrushScale(d.score) ;
+		        })
+		        .attr("fill", function(d, i) {
+		        	var deg = d.score;								// 2 is default color please change according to requirement
+		            return "hsl(" + deg + ", 50%, 50%)";
+		        })
+		        .attr("opacity", function() {
+		            return 1;
+		        })
+		        $(".txtbar").remove();
+		       var dfdf = grp.selectAll(".barsGroup")
+				        .data(data)
+				        .enter()
+				        .append("text").attr("class", "txtbar").attr("x",function(d, i) {
+				        	return xScale(i) + (xScale.rangeBand()/2);
+				         })
+		                 .attr("y",  function(d) { return yScale(d.score)-1; })
+		                 .attr("text-anchor", "middle")
+		                 .text(function(d) { return d.score; });
+				         if(xScale.rangeBand() < 10){
+				        	dfdf.attr("font-size", xScale.rangeBand()+'px')
+				         }
+				         
+		}
+
+		function exit(grp, data) {
+		    grp.selectAll("rect").data(data, function(d) {
+		            return d.key;
+		        }).exit()
+		        .remove();
+		}
+
+		function updateBars(data) {
+
+		    xScale.domain(d3.range(data.length));
+		    yScale.domain([0, d3.max(data, function(d) {
+		        return d.score;
+		    })]);
+
+		    /* Update */
+		    update(barsGroup, data, true);
+
+		    /* Enter... */
+		    enter(barsGroup, data, true);
+
+		    /* Exit */
+		    exit(barsGroup, data);
+		    var newTopData = [];
+		    var newXAxisKeys = [];
+		    for (var i = 0; i < data.length; i++) {
+			     var my_object = {};
+			     my_object.key = data[i].key;
+			     my_object.score = data[i].score;
+			     newXAxisKeys.push(data[i].key)
+			     newTopData.push(my_object);
+		     }
+		    
+		    
+		   var axisRange = d3.range(newTopData.length);
+
+			axisRange.shift();
+
+			axisRange.push((axisRange[axisRange.length - 1] + 1));
+		    var newXScaleAxis = d3.scale.ordinal()
+		    .rangeBands([width, 0], 0.2, 0)
+		    .domain(newXAxisKeys);
+	
+			/* Define y axis */
+			var xAxiss = d3.svg.axis()
+			    .scale(newXScaleAxis)
+			    .tickSize(1, 0)
+			    .tickValues(newXAxisKeys)
+			    .orient("bottom");
+		
+		    svg.select(".x.axis").call(xAxiss).selectAll("text")	
+            .attr("transform", function(d) {
+                return "rotate(-65)" 
+             }).attr("x", "-10")
+            .attr("y", "5"); 
+		    svg.selectAll(".x.axis text").call(wrap)
+		    /* Call the Y axis to adjust it to the new scale */
+		    svg.select("body .y")
+		        .transition()
+		        .duration(1)
+		        .call(yAxis);
+		}
+
+		enter(miniGroup, topData, false);
+		updateBars(topData);
+		display();
+		function type(d) {
+		    d.value = +d.value;
+		    return d;
+		}
+		function wrap(text) {
+			text.each(function () {
+				var text = d3.select(this),
+				//words = text.text().split(/\s+/).reverse(),
+				
+				//words = text,//words = text.text().split(/_|-|\s+/).reverse(),
+					words = text.text(),
+					word,
+					lineNumber = 0,
+					lineHeight = 1.1, // ems
+					y = text.attr("y"),
+					dy = parseFloat(text.attr("dy")),
+					tspan = text.text(null);
+				
+					//tspan.text(line.join("-"));
+					if(words.length>10){
+						words = words.substr(0,10);
+						words = words.concat("...");
+						tspan = text.text(words);
+					}else{
+						
+						tspan = text.text(words);
+					}
+				});
+		
+			};
+			var randomColor = (function(){
+				var golden_ratio_conjugate = 0.618033988749895;
+				var h = Math.random();
+
+				var hslToRgb = function (h, s, l){
+				   var r, g, b;
+
+				   if(s == 0){
+				       r = g = b = l; // achromatic
+				   }else{
+				       function hue2rgb(p, q, t){
+				           if(t < 0) t += 1;
+				           if(t > 1) t -= 1;
+				           if(t < 1/6) return p + (q - p) * 6 * t;
+				           if(t < 1/2) return q;
+				           if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+				           return p;
+				       }
+
+				       var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+				       var p = 2 * l - q;
+				       r = hue2rgb(p, q, h + 1/3);
+				       g = hue2rgb(p, q, h);
+				       b = hue2rgb(p, q, h - 1/3);
+				   }
+
+				   return '#'+Math.round(r * 255).toString(16)+Math.round(g * 255).toString(16)+Math.round(b * 255).toString(16);
+				};
+
+				return function(){
+				 h += golden_ratio_conjugate;
+				 h %= 1;
+				 return hslToRgb(h, 0.5, 0.60);
+				};
+				})();
+
+		
+    </script>
+
+</body>
+</html>
