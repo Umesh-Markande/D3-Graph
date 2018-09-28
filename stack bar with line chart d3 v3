@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+  <head>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<style>
+body {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.bar {
+  fill: steelblue;
+}
+
+.x.axis path {
+  display: none;
+}
+path { 
+    stroke: steelblue;
+    stroke-width: 2;
+    fill: none;
+}
+.brush .extent {
+  stroke: #fff;
+  fill-opacity: .125;
+  shape-rendering: crispEdges;
+}
+</style>
+
+  </head>
+  <body>
+
+  </body>
+
+</html>
+<script>
+var data=[{
+	"Name1": "2018-07",
+	"Girls": "20",
+	"Boys": "80",
+	"Average1": "46"
+}, {
+	"Name1": "Class2",
+	"Girls": "40",
+	"Boys": "30",
+	"Average1": "80"
+}, {
+	"Name1": "Class3",
+	"Girls": "45",
+	"Boys": "20",
+	"Average1": "71"
+}, {
+	"Name1": "Class4",
+	"Girls": "29",
+	"Boys": "10",
+	"Average1": "12"
+}, {
+	"Name1": "Class5",
+	"Girls": "29",
+	"Boys": "10",
+	"Average1": "51"
+}, {
+	"Name1": "Class6",
+	"Girls": "100",
+	"Boys": "10",
+	"Average1": "52"
+}, {
+	"Name1": "Class7",
+	"Girls": "29",
+	"Boys": "10",
+	"Average1": "100"
+}, {
+	"Name1": "Class8",
+	"Girls": "29",
+	"Boys": "10",
+	"Average1": "9"
+}, {
+	"Name1": "Class9",
+	"Girls": "29",
+	"Boys": "10",
+	"Average1": "58"
+}, {
+	"Name1": "Class12",
+	"Girls": "29",
+	"Boys": "10",
+	"Average1": "29"
+}, {
+	"Name1": "Class71",
+	"Girls": "29",
+	"Boys": "10",
+	"Average1": "51"
+}, {
+	"Name1": "Class123",
+	"Girls": "29",
+	"Boys": "10",
+	"Average1": "30"
+}];
+var margin = {top: 20, right: 10, bottom: 100, left: 40},
+	margin2 = {top: 430, right: 10, bottom: 30, left: 40},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom
+	height2 = 500 - margin2.top - margin2.bottom;
+
+var x = d3.scale.ordinal().rangeRoundBands([0, width-150], .1),
+	x2 = d3.scale.ordinal().rangeRoundBands([0, width-150], .1);
+x3 = d3.scale.ordinal().rangeRoundBands([0, width-150], .1);
+
+var y = d3.scale.linear().rangeRound([height, 0])
+	y2 =  d3.scale.linear().rangeRound([height2-20, 0]);
+		
+var x_label_KEY = 'Name1'
+var y_label_KEY = '';
+var line_key = 'Average1'
+
+y1 = d3.scale.linear().range([height, 0]).domain([0,getMax(data, line_key)[line_key]]);//marks can have min 0 and max 100
+
+var yAxisRight = d3.svg.axis().scale(y1)
+    .orient("right").ticks(5); 
+
+var color = d3.scale.ordinal()
+    .range(["#a05d56", "#d0743c", "#ff8c00"]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .tickFormat(d3.format(".2s"));
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+  //filter out name and average
+  color.domain(d3.keys(data[0]).filter(function(key) { return key !== x_label_KEY && key !==line_key; }));
+  data.forEach(function(d) {
+    var y0 = 0;
+    d.group = color.domain().map(function(name) { return {name: name, y0: y0, y1: y0 += +d[name]}; });
+    d.total = d.group[d.group.length - 1].y1;
+  });
+  
+  
+  x.domain(data.map(function(d) { return d[x_label_KEY]; }));
+var axisRange = d3.range(data.length);
+		axisRange.push((axisRange[axisRange.length - 1] + 1));
+  //stores toltal headcount
+  x2.domain(axisRange);
+x3.domain(x.domain());
+  y.domain([0, d3.max(data, function(d) { return d.total; })]);
+y2.domain([0, d3.max(data, function(d) { return d.total; })]);
+  var brush = d3.svg.brush()
+   .x(x2)
+    .on("brush", brush);
+  //line function for averageLine
+  var averageline = d3.svg.line()
+      .x(function(d) { return x(d[x_label_KEY]) + x.rangeBand()/2; })
+      .y(function(d) { return y1(d[line_key]); })
+//
+  var averageminiline = d3.svg.line()
+      .x(function(d) { return x3(d[x_label_KEY]) + x3.rangeBand()/2; })
+      .y(function(d) { return y2(d[line_key]); })
+  //this will make the y axis to teh right
+  svg.append("g")				
+        .attr("class", "y axis")	
+        .attr("transform", "translate(" + (width-100) + " ,0)")	
+        .style("fill", "red")		
+        .call(yAxisRight);
+        
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+     .call(xAxis)	    
+     .selectAll("text")  
+     .style("text-anchor", "end")
+     .attr("dx", "-.8em")
+     .attr("dy", ".15em")
+     .attr("transform", "rotate(-65)");
+
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+    .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+      .text("Population") ;
+   
+  var state = svg.selectAll(".state")
+      .data(data)
+    .enter().append("g")
+      .attr("class", "g")
+      .attr("transform", function(d) { return "translate(" + x(d[x_label_KEY]) + ",0)"; });
+  //adding the rect for group chart
+  state.selectAll("rect")
+      .data(function(d) { return d.group; })
+    .enter().append("rect")
+      .attr("width", x.rangeBand())
+      .attr("y", function(d) { return y(d.y1); })
+      .attr("height", function(d) { return y(d.y0) - y(d.y1); })
+      .style("fill", function(d) { return color(d.name); });
+
+
+  var miniState = svg.append("g").attr("transform", "translate(" + 0 + "," + (height+margin.top+20)  + ")");
+
+	miniState.selectAll(".miniState")
+      .data(data)
+    .enter().append("g")
+      .attr("class", "miniState")
+      .attr("transform", function(d) { return "translate(" + x3(d[x_label_KEY]) + ",0)"; })
+  //adding the rect for group chart
+  .selectAll("rect")
+      .data(function(d) { return d.group; })
+    .enter().append("rect")
+      .attr("width", x3.rangeBand())
+      .attr("y", function(d) { return y2(d.y1); })
+      .attr("height", function(d) { return y2(d.y0) - y2(d.y1); })
+      .style("fill", function(d) { return color(d.name); });
+
+
+
+  svg.append("path").attr('class','lineclass')        // Add the valueline path.
+        .attr("d", averageline(data));
+
+
+  miniState.append("path").attr('class','miniLine')        // Add the valueline path.
+        .attr("d", averageminiline(data));
+
+
+            svg.append("g")
+        .attr("class", "x brush")
+        .call(brush)
+      .selectAll("rect")
+        .attr("y", -6)
+        .attr("height", height2)
+.attr("transform", "translate(" + 0 + "," + (height+margin.top+20)  + ")");
+
+var legendData=color.domain().slice().reverse();
+var colorData = [];
+color.domain().map(function(d) { 
+	colorData.push(color(d)); 
+})
+colorData.push('steelblue')
+legendData.push(line_key);
+
+  //add teh legend
+  var legend = svg.selectAll(".legend")
+      .data(legendData)
+    .enter().append("g")
+      .attr("class", "legend")
+
+      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+  legend.append("rect")
+      .attr("x", width - 18)
+      .attr("width", 18)
+      .attr("height", 18)
+      .style("fill", function(d,i){
+			return colorData[i];
+});
+
+  legend.append("text")
+      .attr("x", width - 24)
+      .attr("y", 9)
+      .attr("dy", ".35em")
+      .style("text-anchor", "end")
+      .text(function(d) { return d; });
+/*
+var legend = svg.selectAll(".legendd")
+      .data([line_key])
+    .enter().append("g")
+      .attr("class", "legendd")
+      .attr("transform", function(d, i) { return "translate(0,40)"; });
+
+  legend.append("rect")
+      .attr("x", width - 18)
+      .attr("width", 18)
+      .attr("height", 18)
+      .style("fill", 'red');
+
+  legend.append("text")
+      .attr("x", width - 24)
+      .attr("y", 9)
+      .attr("dy", ".35em")
+      .style("text-anchor", "end")
+      .text(function(d) { return d; });*/
+
+function brush() {
+ 
+selected = x2.domain()
+		        .filter(function(d) {
+		            return (brush.extent()[0] <= x2(d)) && (x2(d) <= brush.extent()[1]);
+		        });
+xdomain = x3.domain()
+		        .filter(function(d) {
+		            return (brush.extent()[0] <= x3(d)) && (x3(d) <= brush.extent()[1]);
+		        });
+		    var start;
+		    var end;
+		    /* Keep a minimum amount of bars on there to avoid any jank */
+		    if (selected.length > 0) {
+		        start = selected[0];
+		        end = selected[selected.length - 1];	
+		    } else {
+		        start = 0;
+		        end = data.length;
+		    }
+var updatedData = data.slice(start, end);
+ x.domain(xdomain);
+d3.selectAll('.g').remove();
+d3.selectAll('.lineclass').remove();
+state = svg.selectAll(".state")
+      .data(updatedData)
+    .enter().append("g")
+      .attr("class", "g")
+      .attr("transform", function(d) { return "translate(" + x(d[x_label_KEY]) + ",0)"; });
+  //adding the rect for group chart
+  state.selectAll("rect")
+      .data(function(d) { return d.group; })
+    .enter().append("rect")
+      .attr("width", x.rangeBand())
+      .attr("y", function(d) { return y(d.y1); })
+      .attr("height", function(d) { return y(d.y0) - y(d.y1); })
+      .style("fill", function(d) { return color(d.name); });
+
+  svg.append("path").attr('class','lineclass')        // Add the valueline path.
+        .attr("d", averageline(updatedData));
+svg.select(".x.axis").call(xAxis)
+.selectAll("text")  
+     .style("text-anchor", "end")
+     .attr("dx", "-.8em")
+     .attr("dy", ".15em")
+     .attr("transform", "rotate(-65)");
+
+
+}
+function getMax(arr, prop) {
+    var max;
+    for (var i=0 ; i<arr.length ; i++) {
+        if (!max || parseInt(arr[i][prop]) > parseInt(max[prop]))
+            max = arr[i];
+    }
+    return max;
+}
+</script>
