@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+    <style>
+        body {
+            margin: 15px;
+            background-color: #F1F3F3
+        }
+        .bar {
+            fill: #6F257F;
+        }
+        .minibar {
+            fill: #6F257F;
+        }
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #D4D8DA;
+            stroke-width: 1px;
+            shape-rendering: crispEdges;
+        }
+        .x path {
+            display: none;
+        }
+        .toolTip {
+            position: absolute;
+            display: none;
+            min-width: 80px;
+            height: auto;
+            background: none repeat scroll 0 0 #ffffff;
+            border: 1px solid #6F257F;
+            padding: 14px;
+            text-align: center;
+        }
+    </style>
+
+</head>
+
+<body>
+    <svg width="960" height="500"></svg>
+    <script>
+        var svg = d3.select("svg"),
+
+            margin = {
+                top: 10,
+                right: 135,
+                bottom: 70,
+                left: 10
+            },
+            margin2 = {
+                top: 10,
+                right: 135,
+                bottom: 70,
+                left: 50
+            },
+            width = +svg.attr("width") - margin.left - margin.right,
+            height = +svg.attr("height") - margin.top - margin.bottom;
+        var width2 = (svg.attr('width') / 30) + (margin.left / 5);
+
+        var tooltip = d3.select("body").append("div").attr("class", "toolTip");
+
+        var x = d3.scaleLinear().range([width, 0]);
+        var y = d3.scaleBand().range([height, 0]);
+        y2 = d3.scaleBand().range([height, 0]).padding(0.1);
+        x2 = d3.scaleLinear().range([width2, 0]);
+
+        var g = svg.append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var data = [{
+            "area": "central ",
+            "value": 18000
+        }, {
+            "area": "Riverside ",
+            "value": 17000
+        }, {
+            "area": "Picton ",
+            "value": 80000
+        }, {
+            "area": "Everton ",
+            "value": 55000
+        }, {
+            "area": "Kensington ",
+            "value": 100000
+        }, {
+            "area": "Kirkdale",
+            "value": 50000
+        }]
+
+        data.sort(function(a, b) {
+            return a.value - b.value;
+        });
+
+        x.domain([0, d3.max(data, function(d) {
+            return d.value;
+        })]);
+        y.domain(data.map(function(d) {
+            return d.area;
+        })).padding(0.1);
+        y2.domain(data.map(function(d) {
+            return d.area
+        })).padding(0.1);
+        x2.domain([0, d3.max(data, function(d) {
+            return d.value
+        })]);;
+        var translate = 0;
+        g.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x).ticks(5).tickFormat(function(d) {
+                return parseInt(d / 1000);
+            }).tickSizeInner([-height]))
+            .selectAll('.tick').attr("transform", (d) => {
+                if (translate < x(d)) {
+                    translate = x(d);
+                }
+                return "translate(" + x(d) + ",0)"
+            });;;
+
+        g.append("g")
+            .attr("class", "y axis")
+            .attr("transform", "translate(" + translate + ",0)")
+            .call(d3.axisRight(y));;
+
+        g.selectAll(".bar")
+            .data(data)
+            .enter().append("rect")
+            .attr("class", "bar")
+            .attr("x", function(d) {
+                return x(d.value)
+            })
+            .attr("height", y.bandwidth())
+            .attr("y", function(d) {
+                return y(d.area);
+            })
+            .attr("width", function(d) {
+                return x(0) - x(d.value);
+            })
+            .on("mousemove", function(d) {
+                tooltip
+                    .style("left", d3.event.pageX - 50 + "px")
+                    .style("top", d3.event.pageY - 70 + "px")
+                    .style("display", "inline-block")
+                    .html((d.area) + "<br>" + "£" + (d.value));
+            })
+            .on("mouseout", function(d) {
+                tooltip.style("display", "none");
+            });;
+        g.append('g').attr('transform', 'translate(' + ((width + margin.left + margin.right) - margin2.left) + ',0)')
+            .selectAll('.minibar')
+            .data(data)
+            .enter().append("rect")
+            .attr("class", "minibar")
+            .attr("x", function(d) {
+                return x2(d.value)
+            })
+            .attr("height", y2.bandwidth())
+            .attr("y", function(d) {
+                return y2(d.area)
+            })
+            .attr("width", function(d) {
+                return x2(0) - x2(d.value);
+            });
+        var brushExtent = 400;
+        this.brush = d3.brushY()
+            .extent([
+                [0, 0],
+                [width2, height]
+            ])
+            .on('brush end', brushed);;;
+
+        this.g.append("g")
+            .attr('transform', 'translate(' + ((width + margin.left + margin.right) - margin2.left) + ',0)')
+            .attr("class", "brush")
+            .call(brush)
+            .call(brush.move, [0, brushExtent])
+
+        function brushed() {
+
+            if (d3.event.sourceEvent && d3.event.sourceEvent.type === 'zoom') return; // ignore brush-by-zoom
+            var selected = d3.event.selection || y2.range();
+            var newData = [];
+            y2.domain().forEach(function(d) {
+                var pos = y2(d) + y2.bandwidth() / 2;
+                if (pos > selected[0] && pos < selected[1]) {
+                    newData.push(d);
+                }
+            });
+            let updateData = [];;
+            newData.forEach((d) => {
+                data.map(function(obj) {
+                    if (obj.area == d) {
+                        updateData.push(obj);
+                    }
+                })
+            });;
+            y.domain(updateData.map(function(d) {
+                return d.area
+            }));
+            x.domain([0, d3.max(updateData, function(d) {
+                return d.value
+            })]);;
+
+            var xAxis = d3.axisBottom(x)
+            var yAxis = d3.axisRight(y);
+
+            xAxis.ticks(10)
+                .tickSize(-this.height);
+            yAxis.ticks(10)
+                .tickSize(-this.width);
+
+            var xCount = [];;
+            g.selectAll('.axis.x')
+                .call(xAxis)
+                .selectAll("text").text(
+                    function(d, i) {
+                        xCount[i] = d;
+                        return d
+                    })
+                .attr("transform", function(d) {
+                    return "rotate(65)"
+                }).attr("x", "30")
+                .attr("y", "0")
+            g.selectAll('.axis.y')
+                .call(yAxis)
+                .selectAll("text").text(function(d, i) {
+                    return d
+                }).append("svg:title")
+                .text(function(d) {
+                    return d
+                });;
+
+
+            d3.selectAll('.bar').remove();;
+            g.selectAll(".bar")
+                .data(updateData)
+                .enter().append("rect")
+                .attr("class", "bar")
+                .attr("x", function(d) {
+                    return x(d.value)
+                })
+                .attr("height", y.bandwidth())
+                .attr("y", function(d) {
+                    return y(d.area);
+                })
+                .attr("width", function(d) {
+                    return x(0) - x(d.value);
+                });
+        }
+    </script>
+</body>
+
+</html>
